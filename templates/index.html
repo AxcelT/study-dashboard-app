@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes Compiler</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .main-wrapper {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .sidebar {
+            flex: 1;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .container {
+            flex: 2;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h2 { margin-top: 0; color: #333; }
+        h3 { margin-top: 25px; margin-bottom: 10px; color: #0056b3; font-size: 1.1em; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        
+        /* Directory Tree Styles */
+        ul.tree { list-style-type: none; padding-left: 0; }
+        ul.tree ul { list-style-type: none; padding-left: 20px; border-left: 1px dashed #ccc; margin-left: 10px; }
+        .folder-cert { font-weight: bold; color: #0056b3; cursor: pointer; padding: 5px 0; display: inline-block; }
+        .folder-course { color: #444; font-weight: bold; cursor: pointer; padding: 3px 0; display: inline-block; font-size: 0.95em; }
+        .file-mod { color: #555; cursor: pointer; padding: 2px 0; display: inline-block; font-size: 0.85em; }
+        .folder-cert:hover, .folder-course:hover, .file-mod:hover { color: #d9534f; text-decoration: underline; }
+
+        /* Form Styles */
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; color: #555; font-size: 0.9em; }
+        select, input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: vertical; }
+        button { margin-top: 25px; width: 100%; padding: 12px; background-color: #0056b3; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+        button:hover { background-color: #004494; }
+    </style>
+</head>
+<body>
+
+<div class="main-wrapper">
+    <div class="sidebar">
+        <h2>Existing Notes</h2>
+        <p style="font-size: 0.85em; color: #666;">Click a folder or file to auto-fill the form.</p>
+        
+        <ul class="tree">
+            {% for cert, courses in dir_tree.items() %}
+                <li>
+                    <span class="folder-cert" onclick="autofill('{{ cert }}', '', '')">📁 {{ cert }}</span>
+                    {% if courses %}
+                        <ul>
+                        {% for course, modules in courses.items() %}
+                            <li>
+                                <span class="folder-course" onclick="autofill('{{ cert }}', '{{ course }}', '')">↳ 📁 {{ course }}</span>
+                                {% if modules %}
+                                    <ul>
+                                    {% for mod in modules %}
+                                        <li>
+                                            <span class="file-mod" onclick="autofill('{{ cert }}', '{{ course }}', '{{ mod }}')">📄 {{ mod }}</span>
+                                        </li>
+                                    {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                </li>
+            {% else %}
+                <li style="color: #999;">No directories found yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>Add Course Material</h2>
+        <form method="POST">
+            
+            <h3>1. File Routing</h3>
+            <label for="certificate">Certificate Folder</label>
+            <input type="text" name="certificate" id="certificate" placeholder="e.g., aws_cloud_support" required>
+
+            <label for="course">Course Folder</label>
+            <input type="text" name="course" id="course" placeholder="e.g., 01_intro" required>
+
+            <label for="module">Module File Name</label>
+            <input type="text" name="module" id="module" placeholder="e.g., 01_module1" required>
+
+            <h3>2. Note Content</h3>
+            <label for="content_type">Format</label>
+            <select name="content_type" id="content_type" required>
+                <option value="video">Video Transcript</option>
+                <option value="reading">Reading</option>
+            </select>
+
+            <label for="title">Sub-Article Title</label>
+            <input type="text" name="title" id="title" placeholder="e.g., Module 1 Introduction" required>
+
+            <label for="content">Paste Transcript/Content</label>
+            <textarea name="content" id="content" rows="10" required></textarea>
+
+            <button type="submit">Compile to Notes</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function autofill(cert, course, mod) {
+        document.getElementById('certificate').value = cert;
+        document.getElementById('course').value = course;
+        
+        if (mod !== '') {
+            // Strip the .txt so the input looks clean, backend handles re-adding it
+            document.getElementById('module').value = mod.replace('.txt', '');
+        } else if (course === '') {
+            document.getElementById('course').value = '';
+            document.getElementById('module').value = '';
+            document.getElementById('course').focus();
+        } else {
+            document.getElementById('module').value = '';
+            document.getElementById('module').focus();
+        }
+    }
+</script>
+
+</body>
+</html>

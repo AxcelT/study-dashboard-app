@@ -1,3 +1,8 @@
+#Personal ignores
+notes/
+coding_pasta.txt
+
+#GITHUB DEFAULLTS BELOW
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
