@@ -92,9 +92,7 @@
 
     <div class="container">
         <h2>Add Course Material</h2>
-        <form method="POST">
-            
-            <h3>1. File Routing</h3>
+        <form method="POST" enctype="multipart/form-data"> <h3>1. File Routing</h3>
             <label for="certificate">Certificate Folder</label>
             <input type="text" name="certificate" id="certificate" placeholder="e.g., aws_cloud_support" required>
 
@@ -117,29 +115,60 @@
             <label for="content">Paste Transcript/Content</label>
             <textarea name="content" id="content" rows="10" required></textarea>
 
+            <h3>3. Contextual Media (Optional)</h3>
+            <label for="media">Attach Screenshots, Diagrams, or Code Snippets</label>
+            <input type="file" name="media" id="media" multiple accept="image/*">
+            <p style="font-size: 0.8em; color: #666; margin-top: 5px;">Files will be auto-renamed and linked in your Markdown notes.</p>
+
             <button type="submit">Compile to Notes</button>
         </form>
-    </div>
-</div>
 
-<script>
-    function autofill(cert, course, mod) {
-        document.getElementById('certificate').value = cert;
-        document.getElementById('course').value = course;
-        
-        if (mod !== '') {
-            // Strip the .txt so the input looks clean, backend handles re-adding it
-            document.getElementById('module').value = mod.replace('.txt', '');
-        } else if (course === '') {
-            document.getElementById('course').value = '';
-            document.getElementById('module').value = '';
-            document.getElementById('course').focus();
-        } else {
-            document.getElementById('module').value = '';
-            document.getElementById('module').focus();
-        }
-    }
-</script>
+        <script>
+            function autofill(cert, course, mod) {
+                document.getElementById('certificate').value = cert;
+                document.getElementById('course').value = course;
+                
+                if (mod !== '') {
+                    // Strip the .md so the input looks clean
+                    document.getElementById('module').value = mod.replace('.md', '');
+                } else if (course === '') {
+                    document.getElementById('course').value = '';
+                    document.getElementById('module').value = '';
+                    document.getElementById('course').focus();
+                } else {
+                    document.getElementById('module').value = '';
+                    document.getElementById('module').focus();
+                }
+            }
+
+            //Media Placeholder Logic
+            let mediaCount = 0;
+
+            function insertMediaPlaceholder() {
+                const textarea = document.getElementById('content');
+                const placeholder = `\n\n[[MEDIA_${mediaCount}]]\n\n`;
+                
+                // Find cursor position
+                const startPos = textarea.selectionStart;
+                const endPos = textarea.selectionEnd;
+                
+                // Inject placeholder at cursor
+                textarea.value = textarea.value.substring(0, startPos) + 
+                                placeholder + 
+                                textarea.value.substring(endPos, textarea.value.length);
+                
+                // Move cursor after the inserted placeholder and refocus
+                textarea.selectionStart = textarea.selectionEnd = startPos + placeholder.length;
+                textarea.focus();
+                
+                mediaCount++;
+            }
+
+            // Reset counter if form is submitted
+            document.querySelector('form').addEventListener('submit', function() {
+                // Optional: you could reset mediaCount here, but a page reload does it naturally
+            });
+        </script>
 
 </body>
 </html>

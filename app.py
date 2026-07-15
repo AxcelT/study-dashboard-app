@@ -1,7 +1,10 @@
+
 from flask import Flask, render_template, request, redirect, url_for
+from werkzeug.utils import secure_filename
 import os
 import logging
 from logging.handlers import RotatingFileHandler
+import re
 
 app = Flask(__name__)
 
@@ -30,30 +33,22 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def get_directory_tree():
-    """Scans the BASE_DIR and returns a nested dictionary of certificates, courses, and modules."""
     tree = {}
-    
-    # If the base directory doesn't exist yet, return an empty tree
     if not os.path.exists(BASE_DIR):
         return tree
         
     for cert in os.listdir(BASE_DIR):
         cert_path = os.path.join(BASE_DIR, cert)
-        
-        # Only look at directories
         if os.path.isdir(cert_path):
             tree[cert] = {}
             for course in os.listdir(cert_path):
                 course_path = os.path.join(cert_path, course)
-                
-                # Only process course directories
                 if os.path.isdir(course_path):
                     tree[cert][course] = []
-                    # Scan for text files inside the course folder
+                    # Scan for .md files instead of .txt
                     for file in os.listdir(course_path):
-                        if file.endswith('.txt'):
+                        if file.endswith('.md'):
                             tree[cert][course].append(file)
-                    
     return tree
 
 @app.route('/', methods=['GET', 'POST'])
@@ -61,58 +56,72 @@ def index():
     if request.method == 'POST':
         logger.info("--- New Form Submission ---")
         
-        # Retrieve directory structure inputs
         certificate = request.form.get('certificate').strip()
         course = request.form.get('course').strip()
         module = request.form.get('module').strip()
         
-        # Retrieve content inputs
         content_type = request.form.get('content_type')
         title = request.form.get('title')
-        content = request.form.get('content')
+        # We don't strip content yet so we preserve newlines around placeholders
+        content = request.form.get('content') 
 
-        # Logging Stuff
-        logger.debug(f"Received Route Data -> Cert: '{certificate}', Course: '{course}', Module: '{module}'")
-        logger.debug(f"Received Content Data -> Type: '{content_type}', Title: '{title}'")
-        logger.debug(f"Content Length -> {len(content) if content else 0} characters")
+        if not module.endswith('.md'):
+            module += '.md'
 
-        # Ensure the module filename ends with .txt
-        if not module.endswith('.txt'):
-            module += '.txt'
-
-        # Build paths and create directories if they do not exist
         dir_path = os.path.join(BASE_DIR, certificate, course)
         
         try:
             os.makedirs(dir_path, exist_ok=True)
             file_path = os.path.join(dir_path, module)
-            logger.debug(f"File path resolved to: {file_path}")
-
-            with open(file_path, 'a', encoding='utf-8') as f:
-                f.write("\n===\n")
-                if content_type == 'video':
-                    logger.debug("Executing branch: content_type == 'video'")
-                    f.write(f"Sub-Article: {title} (Video)\n")
-                    f.write("Video Transcript:\n")
-
-                elif content_type == 'reading':
-                    logger.debug("Executing branch: content_type == 'reading'")
-                    f.write(f"Sub-Article: {title} (Reading)\n")
-
-                else:
-                    logger.warning(f"Unmatched content_type: '{content_type}'. Neither 'video' nor 'reading' logic executed.")
-                
-                f.write(f"{content}\n")
             
-            logger.info("Successfully wrote content to file.")
+            uploaded_files = request.files.getlist('media')
+            
+            # 1. PROCESS MULTIPLE MEDIA FILES & INJECT INTO CONTENT
+            if uploaded_files and uploaded_files[0].filename != '':
+                media_dir = os.path.join(dir_path, 'media')
+                os.makedirs(media_dir, exist_ok=True)
+                
+                safe_title = re.sub(r'[^a-zA-Z0-9]', '_', title).lower()
+                base_module = module.replace('.md', '')
+                
+                for idx, file in enumerate(uploaded_files):
+                    if file and file.filename:
+                        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'png'
+                        new_filename = secure_filename(f"{base_module}_{safe_title}_{idx}.{ext}")
+                        media_path = os.path.join(media_dir, new_filename)
+                        
+                        file.save(media_path)
+                        
+                        # Generate the Markdown image string
+                        markdown_img = f"![Attached Media: {new_filename}](media/{new_filename})"
+                        
+                        # Look for the specific placeholder in the text
+                        placeholder = f"[[MEDIA_{idx}]]"
+                        
+                        if placeholder in content:
+                            # Replace the placeholder with the actual image markdown
+                            content = content.replace(placeholder, markdown_img)
+                        else:
+                            # Fallback: If they forgot the placeholder, append to the bottom
+                            content += f"\n\n{markdown_img}"
+
+            # 2. WRITE FINAL MARKDOWN TO FILE
+            with open(file_path, 'a', encoding='utf-8') as f:
+                f.write(f"\n## Sub-Article: {title} ({content_type.capitalize()})\n\n")
+                
+                if content_type == 'video':
+                    f.write("### Video Transcript:\n")
+                
+                # Write the content (now containing the inline image links)
+                f.write(f"{content.strip()}\n\n")
+            
+            logger.info("Successfully wrote content and inline media to file.")
             
         except Exception as e:
-            # LOGGER: If the script fails to write to the file due to permissions or missing directories
             logger.error(f"Failed to write to file due to error: {e}", exc_info=True)
 
         return redirect(url_for('index'))
 
-    # On GET request, fetch the directory tree and pass it to the template
     dir_tree = get_directory_tree()
     return render_template('index.html', dir_tree=dir_tree)
 
