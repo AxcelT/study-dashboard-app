@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes Compiler</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .main-wrapper {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .sidebar {
+            flex: 1;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .container {
+            flex: 2;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h2 { margin-top: 0; color: #333; }
+        h3 { margin-top: 25px; margin-bottom: 10px; color: #0056b3; font-size: 1.1em; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+
+        /* Directory Tree Styles */
+        ul.tree { list-style-type: none; padding-left: 0; }
+        ul.tree ul { list-style-type: none; padding-left: 20px; border-left: 1px dashed #ccc; margin-left: 10px; }
+        .folder-course { font-weight: bold; color: #0056b3; cursor: pointer; padding: 5px 0; display: inline-block; }
+        .folder-module { color: #444; font-weight: bold; cursor: pointer; padding: 3px 0; display: inline-block; font-size: 0.95em; }
+        .folder-article { color: #555; cursor: pointer; padding: 2px 0; display: inline-block; font-size: 0.85em; }
+        .folder-course:hover, .folder-module:hover, .folder-article:hover { color: #d9534f; text-decoration: underline; }
+
+        .flash { padding: 10px 14px; border-radius: 6px; font-size: 0.9em; margin-bottom: 12px; }
+        .flash.success { background: #e6f4ea; color: #1e6b34; border: 1px solid #b7e0c2; }
+        .flash.error   { background: #fdecec; color: #a1302f; border: 1px solid #f3c2c1; }
+
+        /* Form Styles */
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; color: #555; font-size: 0.9em; }
+        select, input, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        textarea { resize: vertical; }
+        button { margin-top: 25px; width: 100%; padding: 12px; background-color: #0056b3; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+        button:hover { background-color: #004494; }
+        .back-link { display: inline-block; margin-bottom: 15px; color: #0056b3; text-decoration: none; font-size: 0.9em; }
+        .back-link:hover { text-decoration: underline; }
+        .field-hint { font-size: 0.78em; color: #888; margin: 3px 0 0; }
+    </style>
+</head>
+<body>
+
+<div class="main-wrapper">
+    <div class="sidebar">
+        <a class="back-link" href="{{ url_for('index') }}">&larr; Back to Dashboard</a>
+        <h2>Course Structure</h2>
+        <p style="font-size: 0.85em; color: #666;">Click a course, module, or article to auto-fill the routing fields.</p>
+
+        <ul class="tree">
+            {% for course in courses %}
+                <li>
+                    <span class="folder-course" onclick="autofill('{{ course.slug }}', '', '')">📁 {{ course.slug }}</span>
+                    <ul>
+                    {% for module in course.modules %}
+                        <li>
+                            <span class="folder-module" onclick="autofill('{{ course.slug }}', '{{ module.slug }}', '')">↳ 📁 {{ module.slug }}</span>
+                            <ul>
+                            {% for art in module.articles %}
+                                <li>
+                                    <span class="folder-article" onclick="autofill('{{ course.slug }}', '{{ module.slug }}', '{{ art.slug }}')">📄 {{ art.slug }}</span>
+                                </li>
+                            {% endfor %}
+                            </ul>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                </li>
+            {% else %}
+                <li style="color: #999;">No courses found yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>Add Course Material</h2>
+
+        {% with messages = get_flashed_messages() %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST" enctype="multipart/form-data">
+            <h3>1. File Routing</h3>
+            <label for="course">Course Folder</label>
+            <input type="text" name="course" id="course" placeholder="e.g., aws_cloud_support_professional" required>
+
+            <label for="module">Module Folder</label>
+            <input type="text" name="module" id="module" placeholder="e.g., 01_intro_to_it_and_aws" required>
+            <p class="field-hint">Existing names match with or without the number prefix; new names get auto-numbered.</p>
+
+            <label for="article">Article Folder</label>
+            <input type="text" name="article" id="article" placeholder="e.g., 01_cloud_foundations" required>
+
+            <h3>2. Sub-Article Content</h3>
+            <label for="content_type">Format</label>
+            <select name="content_type" id="content_type" required>
+                <option value="video">Video Transcript</option>
+                <option value="reading">Reading</option>
+            </select>
+
+            <label for="title">Sub-Article Title</label>
+            <input type="text" name="title" id="title" placeholder="e.g., What is Cloud Computing" required>
+            <p class="field-hint">Saved as <code>xx_title.md</code> plus an <code>xx_title.ai.md</code> placeholder for the AI artifact.</p>
+
+            <label for="content">Paste Transcript/Content</label>
+            <textarea name="content" id="content" rows="10" required></textarea>
+
+            <h3>3. Contextual Media (Optional)</h3>
+            <label for="media">Attach Screenshots, Diagrams, or Code Snippets</label>
+            <input type="file" name="media" id="media" multiple accept="image/*">
+            <p style="font-size: 0.8em; color: #666; margin-top: 5px;">Files will be auto-renamed and linked in your Markdown notes.</p>
+
+            <button type="submit">Compile to Notes</button>
+        </form>
+
+        <script>
+            function autofill(course, module, article) {
+                document.getElementById('course').value = course;
+                document.getElementById('module').value = module;
+                document.getElementById('article').value = article;
+
+                if (module === '') {
+                    document.getElementById('module').focus();
+                } else if (article === '') {
+                    document.getElementById('article').focus();
+                } else {
+                    document.getElementById('title').focus();
+                }
+            }
+
+            //Media Placeholder Logic
+            let mediaCount = 0;
+
+            function insertMediaPlaceholder() {
+                const textarea = document.getElementById('content');
+                const placeholder = `\n\n[[MEDIA_${mediaCount}]]\n\n`;
+
+                // Find cursor position
+                const startPos = textarea.selectionStart;
+                const endPos = textarea.selectionEnd;
+
+                // Inject placeholder at cursor
+                textarea.value = textarea.value.substring(0, startPos) +
+                                placeholder +
+                                textarea.value.substring(endPos, textarea.value.length);
+
+                // Move cursor after the inserted placeholder and refocus
+                textarea.selectionStart = textarea.selectionEnd = startPos + placeholder.length;
+                textarea.focus();
+
+                mediaCount++;
+            }
+        </script>
+    </div>
+</div>
+
+</body>
+</html>

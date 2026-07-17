@@ -1,4 +1,4 @@
-# DOCS: migrate_notes.py
+# DOCS: migrate_txt_to_md.py
 
 ## Overview
 This script is a one-off data migration tool used to convert legacy `.txt` course notes into the application's new standard Markdown (`.md`) format.
@@ -17,9 +17,14 @@ The early version of the Study Dashboard appended raw reading materials and vide
 ## Usage
 From your terminal, navigate to the root of the project and run the script:
 
-`python util/migrate_notes.py`
+`python util/migrate_txt_to_md.py`
 
 ## ⚠️ Important Warnings & Best Practices
 * **Run Once:** This is designed as a one-time migration script. Once your files are converted to `.md`, you do not need to run this on the same files again.
 * **Make a Backup:** Always make a copy of your `notes/` directory before running batch file manipulation scripts.
 * **Cleanup:** The script does *not* delete the original `.txt` files by default. Review the generated `.md` files to ensure formatting is correct. Once verified, you can manually delete the `.txt` files or uncomment the `os.remove(txt_filepath)` line at the bottom of the script and run it one last time to auto-delete the legacy files.
+
+## Changelog
+| Date | Change |
+|------|--------|
+| 2026-07-18 | Added Changelog. Renamed from `migrate_notes.py` to `migrate_txt_to_md.py`. |

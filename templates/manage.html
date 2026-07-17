@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Structure — Study Dashboard</title>
+    <style>
+        * { box-sizing: border-box; }
+        :root {
+            --blue: #0056d2;
+            --blue-dark: #00419e;
+            --ink: #1f1f1f;
+            --muted: #5b6780;
+            --border: #e4e7ec;
+            --bg: #f7f8fa;
+        }
+        body {
+            margin: 0;
+            padding: 28px 20px;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+        }
+        .wrap { max-width: 980px; margin: 0 auto; }
+        .back-link { display: inline-block; margin-bottom: 14px; color: var(--blue); text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { text-decoration: underline; }
+        h1 { font-size: 1.3rem; margin: 0 0 4px; }
+        .subtitle { color: var(--muted); font-size: 0.88rem; margin: 0 0 20px; }
+
+        .flash { padding: 10px 14px; border-radius: 6px; font-size: 0.88rem; margin-bottom: 14px; }
+        .flash.success { background: #e6f4ea; color: #1e6b34; border: 1px solid #b7e0c2; }
+        .flash.error   { background: #fdecec; color: #a1302f; border: 1px solid #f3c2c1; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+        @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px 20px;
+        }
+        .card h2 { margin: 0 0 4px; font-size: 1rem; color: var(--blue-dark); }
+        .card .hint { color: var(--muted); font-size: 0.8rem; margin: 0 0 12px; }
+        .card h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 18px 0 6px; }
+        .card h3:first-of-type { margin-top: 0; }
+
+        label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin: 10px 0 4px; }
+        input[type=text], input[type=number], select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.88rem;
+            font-family: inherit;
+            background: #fff;
+        }
+        .row { display: flex; gap: 10px; }
+        .row > div { flex: 1; }
+        .row .pos { flex: 0 0 90px; }
+        button {
+            margin-top: 12px;
+            padding: 9px 16px;
+            background: var(--blue);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.88rem;
+            cursor: pointer;
+        }
+        button:hover { background: var(--blue-dark); }
+        form + h3 { border-top: 1px solid var(--border); padding-top: 14px; }
+
+        /* Structure overview tree */
+        ul.tree { list-style: none; padding-left: 0; margin: 0; font-size: 0.88rem; }
+        ul.tree ul { list-style: none; padding-left: 18px; border-left: 1px dashed var(--border); margin: 2px 0 6px 6px; }
+        .t-course { font-weight: 700; color: var(--blue-dark); padding: 4px 0; display: inline-block; }
+        .t-module { font-weight: 600; color: var(--ink); padding: 2px 0; display: inline-block; }
+        .t-article { color: var(--muted); padding: 1px 0; display: inline-block; }
+        .t-count { color: var(--muted); font-weight: 400; font-size: 0.78em; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <a class="back-link" href="{{ url_for('index') }}">&larr; Back to Dashboard</a>
+    <h1>⚙ Manage Structure</h1>
+    <p class="subtitle">Add or adjust courses, modules, and articles. Sequence numbers (<code>01_</code>, <code>02_</code>…) control the order in the sidebar.</p>
+
+    {% with messages = get_flashed_messages() %}
+        {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <div class="grid">
+        <div>
+            <div class="card">
+                <h2>Add</h2>
+                <p class="hint">New modules and articles are auto-numbered at the end of their sequence.</p>
+
+                <h3>New Course</h3>
+                <form method="POST" action="{{ url_for('manage_create') }}">
+                    <input type="hidden" name="kind" value="course">
+                    <label for="course-name">Course / certificate name</label>
+                    <input type="text" id="course-name" name="name" placeholder="e.g., AWS DevOps Professional" required>
+                    <button type="submit">Create Course</button>
+                </form>
+
+                <h3>New Module</h3>
+                <form method="POST" action="{{ url_for('manage_create') }}">
+                    <input type="hidden" name="kind" value="module">
+                    <label for="module-course">Inside course</label>
+                    <select id="module-course" name="course" required>
+                        {% for course in courses %}
+                            <option value="{{ course.slug }}">{{ course.title }}</option>
+                        {% endfor %}
+                    </select>
+                    <label for="module-name">Module name</label>
+                    <input type="text" id="module-name" name="name" placeholder="e.g., Networking Fundamentals" required>
+                    <button type="submit">Create Module</button>
+                </form>
+
+                <h3>New Article</h3>
+                <form method="POST" action="{{ url_for('manage_create') }}">
+                    <input type="hidden" name="kind" value="article">
+                    <label for="article-parent">Inside module</label>
+                    <select id="article-parent" name="parent" required>
+                        {% for course in courses %}
+                            {% for module in course.modules %}
+                                <option value="{{ course.slug }}/{{ module.slug }}">{{ course.title }} &rsaquo; {{ module.title }}</option>
+                            {% endfor %}
+                        {% endfor %}
+                    </select>
+                    <label for="article-name">Article name</label>
+                    <input type="text" id="article-name" name="name" placeholder="e.g., Cloud Foundations" required>
+                    <button type="submit">Create Article</button>
+                </form>
+            </div>
+
+            <div class="card" style="margin-top: 18px;">
+                <h2>Rename / Reorder</h2>
+                <p class="hint">Pick any item, give it a new name and/or a new sequence position. Leave a field blank to keep it as-is.</p>
+                <form method="POST" action="{{ url_for('manage_rename') }}">
+                    <label for="rename-path">Item</label>
+                    <select id="rename-path" name="path" required>
+                        {% for course in courses %}
+                            <option value="{{ course.slug }}">📁 {{ course.title }} (course)</option>
+                            {% for module in course.modules %}
+                                <option value="{{ course.slug }}/{{ module.slug }}">&nbsp;&nbsp;📁 {{ module.slug }} (module)</option>
+                                {% for art in module.articles %}
+                                    <option value="{{ course.slug }}/{{ module.slug }}/{{ art.slug }}">&nbsp;&nbsp;&nbsp;&nbsp;📄 {{ art.slug }} (article)</option>
+                                {% endfor %}
+                            {% endfor %}
+                        {% endfor %}
+                    </select>
+                    <div class="row">
+                        <div class="pos">
+                            <label for="rename-pos">Position</label>
+                            <input type="number" id="rename-pos" name="position" min="1" max="99" placeholder="e.g., 2">
+                        </div>
+                        <div>
+                            <label for="rename-name">New name</label>
+                            <input type="text" id="rename-name" name="name" placeholder="Leave blank to keep current name">
+                        </div>
+                    </div>
+                    <button type="submit">Apply</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Current Structure</h2>
+            <p class="hint">Folder names as they exist on disk under <code>notes\</code>.</p>
+            <ul class="tree">
+                {% for course in courses %}
+                    <li>
+                        <span class="t-course">📁 {{ course.slug }}</span>
+                        <ul>
+                            {% for module in course.modules %}
+                                <li>
+                                    <span class="t-module">📁 {{ module.slug }}</span>
+                                    <ul>
+                                        {% for art in module.articles %}
+                                            <li>
+                                                <span class="t-article">📄 {{ art.slug }}
+                                                    <span class="t-count">({{ art.sub_articles | length }} sub-article{{ '' if art.sub_articles | length == 1 else 's' }})</span>
+                                                </span>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </li>
+                {% else %}
+                    <li style="color: var(--muted);">No courses yet — create one on the left.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+</body>
+</html>
