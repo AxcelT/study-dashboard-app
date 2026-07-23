@@ -4,322 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Study Dashboard</title>
-    <style>
-        * { box-sizing: border-box; }
-
-        :root {
-            --blue: #0056d2;          /* Coursera-ish primary */
-            --blue-dark: #00419e;
-            --ink: #1f1f1f;
-            --muted: #5b6780;
-            --border: #e4e7ec;
-            --bg: #f7f8fa;
-            --sidebar-bg: #ffffff;
-        }
-
-        html, body {
-            height: 100%;
-            margin: 0;
-            font-family: "Segoe UI", Arial, sans-serif;
-            color: var(--ink);
-            background: var(--bg);
-        }
-
-        /* ===== App Shell: sidebar + content ===== */
-        .app {
-            display: flex;
-            height: 100vh;
-            overflow: hidden;   /* panels scroll internally, page never does */
-        }
-
-        /* ===== Sidebar ===== */
-        .sidebar {
-            width: 310px;
-            flex-shrink: 0;
-            background: var(--sidebar-bg);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-        }
-        .sidebar-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid var(--border);
-        }
-        .sidebar-header h1 {
-            margin: 0 0 10px;
-            font-size: 1.05rem;
-            color: var(--blue);
-        }
-        .course-select {
-            width: 100%;
-            padding: 8px 10px;
-            font-size: 0.85rem;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: #fff;
-            color: var(--ink);
-        }
-        .sidebar-nav {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px 0 20px;
-        }
-
-        /* Module: collapsible dropdown */
-        details.module { border-bottom: 1px solid var(--border); }
-        details.module > summary {
-            list-style: none;
-            cursor: pointer;
-            padding: 12px 20px;
-            font-size: 0.82rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: var(--muted);
-            user-select: none;
-        }
-        details.module > summary::-webkit-details-marker { display: none; }
-        details.module > summary::before {
-            content: "▸";
-            display: inline-block;
-            margin-right: 8px;
-            color: var(--blue);
-            transition: transform 0.15s;
-        }
-        details.module[open] > summary::before { transform: rotate(90deg); }
-        details.module > summary:hover { background: #f2f6fd; }
-
-        /* Article group inside a module */
-        .article-block { padding: 2px 0 10px; }
-        .article-title {
-            display: block;
-            padding: 4px 20px 4px 34px;
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: var(--ink);
-        }
-        .sub-article-list {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-        }
-        .sub-article-list a {
-            display: block;
-            padding: 7px 20px 7px 48px;
-            font-size: 0.86rem;
-            color: var(--ink);
-            text-decoration: none;
-            border-left: 3px solid transparent;
-        }
-        .sub-article-list a:hover {
-            background: #eef3fc;
-            color: var(--blue-dark);
-        }
-        .sub-article-list a.active {
-            background: #e7effc;
-            border-left-color: var(--blue);
-            color: var(--blue-dark);
-            font-weight: 600;
-        }
-        .sub-article-list .no-ai {
-            font-size: 0.7em;
-            color: var(--muted);
-            vertical-align: middle;
-        }
-        .empty-note {
-            padding: 6px 20px 6px 48px;
-            font-size: 0.8rem;
-            color: var(--muted);
-            font-style: italic;
-        }
-
-        .sidebar-footer {
-            padding: 12px 20px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            gap: 16px;
-        }
-        .sidebar-footer a {
-            font-size: 0.8rem;
-            color: var(--muted);
-            text-decoration: none;
-        }
-        .sidebar-footer a:hover { color: var(--blue); }
-
-        /* ===== Content Area ===== */
-        .content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;   /* allow children to shrink instead of overflowing */
-        }
-        .content-header {
-            padding: 14px 24px;
-            background: #ffffff;
-            border-bottom: 1px solid var(--border);
-        }
-        .content-header .crumb {
-            font-size: 0.75rem;
-            color: var(--muted);
-            margin: 0 0 2px;
-        }
-        .content-header h2 {
-            margin: 0;
-            font-size: 1.15rem;
-        }
-
-        /* ===== Split Panes ===== */
-        .split {
-            flex: 1;
-            display: flex;
-            min-height: 0;  /* critical: lets each pane own its scrollbar */
-        }
-        .pane {
-            flex: 1;
-            min-width: 0;
-            overflow-y: auto;
-            padding: 20px 24px;
-        }
-        .pane-label {
-            position: sticky;
-            top: -20px;          /* counteract pane padding so it hugs the top */
-            margin: -20px -24px 16px;
-            padding: 8px 24px;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 0.06em;
-            text-transform: uppercase;
-            color: var(--muted);
-            background: inherit;
-            border-bottom: 1px solid var(--border);
-        }
-
-        /* Left window: raw material */
-        .pane-raw {
-            background: #fbfbfc;
-            border-right: 1px solid var(--border);
-            font-family: Consolas, "Courier New", monospace;
-            font-size: 0.85rem;
-            line-height: 1.7;
-            color: #3a4254;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-        }
-
-        /* Right window: rendered study guide */
-        .pane-guide { background: #ffffff; }
-        .pane-guide h1 { font-size: 1.4rem; color: var(--blue-dark); margin-top: 0; }
-        .pane-guide h2 { font-size: 1.1rem; margin-top: 1.6em; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-        .pane-guide h3 { font-size: 0.95rem; }
-        .pane-guide p, .pane-guide li { line-height: 1.65; font-size: 0.92rem; }
-        .pane-guide blockquote {
-            margin: 1em 0;
-            padding: 10px 16px;
-            background: #eef3fc;
-            border-left: 4px solid var(--blue);
-            border-radius: 0 6px 6px 0;
-        }
-        .pane-guide blockquote p { margin: 0; }
-        .pane-guide code {
-            background: #f1f3f7;
-            padding: 1px 5px;
-            border-radius: 4px;
-            font-size: 0.85em;
-        }
-        .pane-guide pre {
-            background: #f1f3f7;
-            padding: 12px;
-            border-radius: 6px;
-            overflow-x: auto;
-        }
-        .pane-guide table {
-            border-collapse: collapse;
-            width: 100%;
-            font-size: 0.88rem;
-        }
-        .pane-guide th, .pane-guide td {
-            border: 1px solid var(--border);
-            padding: 8px 10px;
-            text-align: left;
-        }
-        .pane-guide th { background: #f2f5fa; }
-        .pane-guide hr { border: none; border-top: 1px solid var(--border); margin: 1.6em 0; }
-
-        /* ===== Empty State ===== */
-        .empty-state {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: var(--muted);
-            text-align: center;
-            padding: 40px;
-        }
-        .empty-state .icon { font-size: 2.6rem; margin-bottom: 12px; }
-        .empty-state h2 { margin: 0 0 6px; font-size: 1.1rem; color: var(--ink); }
-        .empty-state p { margin: 0; font-size: 0.9rem; max-width: 380px; }
-        .empty-state a { color: var(--blue); }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <!-- Sprint 2 stack: HTMX for HTML-fragment requests, Alpine.js for local UI state.
+         dashboard.js must load before Alpine so its alpine:init component registers. -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
 </head>
 <body>
 
-<div class="app">
+<div class="app" x-data="dashboard">
 
     <!-- ===== Left Panel: Sidebar Navigation ===== -->
     <nav class="sidebar">
-        <div class="sidebar-header">
-            <h1>📚 Study Dashboard</h1>
-            <select class="course-select" onchange="location.href='/?course=' + this.value"
-                    aria-label="Select course">
-                {% for course in courses %}
-                    <option value="{{ course.slug }}"
-                            {{ 'selected' if current_course and course.slug == current_course.slug }}>
-                        {{ course.title }}
-                    </option>
-                {% else %}
-                    <option disabled selected>No courses yet</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="sidebar-nav">
-            {% if current_course %}
-                {% for module in current_course.modules %}
-                    <details class="module" {{ 'open' if not active or active.module == module.slug }}>
-                        <summary>{{ module.title }}</summary>
-                        {% for art in module.articles %}
-                            <div class="article-block">
-                                <span class="article-title">{{ art.title }}</span>
-                                <ul class="sub-article-list">
-                                    {% for sub in art.sub_articles %}
-                                        <li>
-                                            <a href="{{ url_for('view_sub_article',
-                                                                course=current_course.slug,
-                                                                module=module.slug,
-                                                                article=art.slug,
-                                                                sub=sub.slug) }}"
-                                               class="{{ 'active' if active
-                                                          and active.module == module.slug
-                                                          and active.article == art.slug
-                                                          and active.sub == sub.slug }}">
-                                                {{ sub.title }}
-                                                {% if not sub.has_ai %}<span class="no-ai" title="No AI artifact yet">⏳</span>{% endif %}
-                                            </a>
-                                        </li>
-                                    {% else %}
-                                        <li class="empty-note">No sub-articles yet</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        {% else %}
-                            <p class="empty-note">No articles yet</p>
-                        {% endfor %}
-                    </details>
-                {% else %}
-                    <p class="empty-note">This course has no modules yet.</p>
-                {% endfor %}
-            {% endif %}
+        <div id="sidebar-live"
+             hx-get="{{ url_for('sidebar') }}{% if current_course %}?course={{ current_course.slug }}{% if active %}&amp;module={{ active.module }}&amp;article={{ active.article }}&amp;sub={{ active.sub }}{% endif %}{% endif %}"
+             hx-trigger="tree-changed from:body"
+             hx-swap="innerHTML">
+            {% include 'partials/_sidebar.html' %}
         </div>
 
         <div class="sidebar-footer">
@@ -330,14 +32,25 @@
 
     <!-- ===== Right Panel: Content Area ===== -->
     <main class="content">
-        {% if active %}
-            <div class="content-header">
-                <p class="crumb">
-                    {{ current_course.title }} &rsaquo; {{ crumb_module }} &rsaquo; {{ crumb_article }}
-                </p>
-                <h2>{{ sub_title }}</h2>
+        <div class="content-header">
+            <div>
+                {% if active %}
+                    <p class="crumb">
+                        {{ current_course.title }} &rsaquo; {{ crumb_module }} &rsaquo; {{ crumb_article }}
+                    </p>
+                    <h2>{{ sub_title }}</h2>
+                {% else %}
+                    <h2 class="placeholder-title">Dashboard</h2>
+                {% endif %}
             </div>
+            <button type="button" class="edit-toggle" :class="{ 'on': editMode }"
+                    @click="editMode = !editMode" :aria-pressed="editMode.toString()">
+                <span class="edit-toggle-track"><span class="edit-toggle-knob"></span></span>
+                Edit Mode
+            </button>
+        </div>
 
+        {% if active %}
             <div class="split">
                 <!-- Left Window: Raw Material -->
                 <div class="pane pane-raw">

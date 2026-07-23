@@ -1,0 +1,103 @@
+{# Sidebar header + navigation tree. Rendered inline by index.html and re-served
+   as a fragment by GET /sidebar whenever the tree changes (HX-Trigger: tree-changed). #}
+
+{% macro node_actions(rel_path, label, container) %}
+    <span class="node-actions" x-show="editMode" x-cloak x-on:click.stop>
+        <button type="button" class="icon-btn" title="Rename"
+                hx-get="{{ url_for('node_edit', rel_path=rel_path) }}"
+                hx-target="#node-{{ rel_path|replace('/', '--') }}"
+                hx-swap="outerHTML">✎</button>
+        <button type="button" class="icon-btn" title="Delete"
+                hx-delete="{{ url_for('node_delete', rel_path=rel_path) }}"
+                hx-confirm="Delete {{ label }}? This cannot be undone."
+                hx-target="closest {{ container }}"
+                hx-swap="outerHTML">🗑</button>
+    </span>
+{% endmacro %}
+
+<div class="sidebar-header">
+    <h1>📚 Study Dashboard</h1>
+    <select class="course-select" aria-label="Select course">
+        {% for course in courses %}
+            <option value="{{ course.slug }}"
+                    {{ 'selected' if current_course and course.slug == current_course.slug }}>
+                {{ course.title }}
+            </option>
+        {% else %}
+            <option disabled selected>No courses yet</option>
+        {% endfor %}
+    </select>
+    {% if current_course %}
+        <div class="course-row" x-show="editMode" x-cloak>
+            {% with rel_path = current_course.slug, title = current_course.title %}
+                {% include 'partials/_node_title.html' %}
+            {% endwith %}
+            {{ node_actions(current_course.slug,
+                            "the course '" ~ current_course.title ~ "' and ALL of its content",
+                            '.course-row') }}
+        </div>
+    {% endif %}
+</div>
+
+<div class="sidebar-nav">
+    {% if current_course %}
+        {% for module in current_course.modules %}
+            {% set mpath = current_course.slug ~ '/' ~ module.slug %}
+            {% set m_active = active and active.module == module.slug %}
+            <div class="module" x-data="{ open: {{ 'true' if m_active else 'false' }} }">
+                <div class="module-header {{ 'is-active' if m_active }}"
+                     :class="{ 'is-open': open }"
+                     @click="open = !open" @keydown.enter.self.prevent="open = !open"
+                     role="button" :aria-expanded="open.toString()" tabindex="0">
+                    <span class="chevron">▸</span>
+                    {% with rel_path = mpath, title = module.title %}
+                        {% include 'partials/_node_title.html' %}
+                    {% endwith %}
+                    {{ node_actions(mpath,
+                                    "the module '" ~ module.title ~ "' and everything inside it",
+                                    '.module') }}
+                </div>
+                <div class="module-body" x-show="open">
+                    {% for art in module.articles %}
+                        {% set apath = mpath ~ '/' ~ art.slug %}
+                        {% set a_active = m_active and active.article == art.slug %}
+                        <div class="article-block" x-data="{ open: {{ 'true' if a_active else 'false' }} }">
+                            <div class="article-row {{ 'is-active' if a_active }}"
+                                 :class="{ 'is-open': open }"
+                                 @click="open = !open" @keydown.enter.self.prevent="open = !open"
+                                 role="button" :aria-expanded="open.toString()" tabindex="0">
+                                <span class="chevron">▸</span>
+                                {% with rel_path = apath, title = art.title %}
+                                    {% include 'partials/_node_title.html' %}
+                                {% endwith %}
+                                {{ node_actions(apath,
+                                                "the article '" ~ art.title ~ "' and its sub-articles",
+                                                '.article-block') }}
+                            </div>
+                            <ul class="sub-article-list" x-show="open">
+                                {% for sub in art.sub_articles %}
+                                    {% set spath = apath ~ '/' ~ sub.slug %}
+                                    <li class="sub-row">
+                                        {% with rel_path = spath, title = sub.title, has_ai = sub.has_ai,
+                                                is_active = (m_active and active.article == art.slug and active.sub == sub.slug) %}
+                                            {% include 'partials/_node_title.html' %}
+                                        {% endwith %}
+                                        {{ node_actions(spath,
+                                                        "the sub-article '" ~ sub.title ~ "'",
+                                                        'li') }}
+                                    </li>
+                                {% else %}
+                                    <li class="empty-note">No sub-articles yet</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <p class="empty-note">No articles yet</p>
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <p class="empty-note">This course has no modules yet.</p>
+        {% endfor %}
+    {% endif %}
+</div>

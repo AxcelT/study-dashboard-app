@@ -1,0 +1,13 @@
+{# A single tree-node title. Swapped in/out by HTMX during inline renames.
+   rel_path: <course>[/<module>[/<article>[/<sub_stem>]]] #}
+{% set parts = rel_path.split('/') %}
+{% set dom_id = 'node-' ~ rel_path|replace('/', '--') %}
+{% if parts|length == 4 %}
+    <a id="{{ dom_id }}" class="node-title {{ 'active' if is_active }}"
+       href="{{ url_for('view_sub_article', course=parts[0], module=parts[1], article=parts[2], sub=parts[3]) }}">
+        {{ title }}
+        {% if not has_ai %}<span class="no-ai" title="No AI artifact yet">⏳</span>{% endif %}
+    </a>
+{% else %}
+    <span id="{{ dom_id }}" class="node-title">{{ title }}</span>
+{% endif %}

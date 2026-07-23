@@ -4,81 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Structure — Study Dashboard</title>
-    <style>
-        * { box-sizing: border-box; }
-        :root {
-            --blue: #0056d2;
-            --blue-dark: #00419e;
-            --ink: #1f1f1f;
-            --muted: #5b6780;
-            --border: #e4e7ec;
-            --bg: #f7f8fa;
-        }
-        body {
-            margin: 0;
-            padding: 28px 20px;
-            font-family: "Segoe UI", Arial, sans-serif;
-            background: var(--bg);
-            color: var(--ink);
-        }
-        .wrap { max-width: 980px; margin: 0 auto; }
-        .back-link { display: inline-block; margin-bottom: 14px; color: var(--blue); text-decoration: none; font-size: 0.9rem; }
-        .back-link:hover { text-decoration: underline; }
-        h1 { font-size: 1.3rem; margin: 0 0 4px; }
-        .subtitle { color: var(--muted); font-size: 0.88rem; margin: 0 0 20px; }
-
-        .flash { padding: 10px 14px; border-radius: 6px; font-size: 0.88rem; margin-bottom: 14px; }
-        .flash.success { background: #e6f4ea; color: #1e6b34; border: 1px solid #b7e0c2; }
-        .flash.error   { background: #fdecec; color: #a1302f; border: 1px solid #f3c2c1; }
-
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
-        @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
-
-        .card {
-            background: #fff;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 18px 20px;
-        }
-        .card h2 { margin: 0 0 4px; font-size: 1rem; color: var(--blue-dark); }
-        .card .hint { color: var(--muted); font-size: 0.8rem; margin: 0 0 12px; }
-        .card h3 { font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 18px 0 6px; }
-        .card h3:first-of-type { margin-top: 0; }
-
-        label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin: 10px 0 4px; }
-        input[type=text], input[type=number], select {
-            width: 100%;
-            padding: 8px 10px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            font-size: 0.88rem;
-            font-family: inherit;
-            background: #fff;
-        }
-        .row { display: flex; gap: 10px; }
-        .row > div { flex: 1; }
-        .row .pos { flex: 0 0 90px; }
-        button {
-            margin-top: 12px;
-            padding: 9px 16px;
-            background: var(--blue);
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            font-size: 0.88rem;
-            cursor: pointer;
-        }
-        button:hover { background: var(--blue-dark); }
-        form + h3 { border-top: 1px solid var(--border); padding-top: 14px; }
-
-        /* Structure overview tree */
-        ul.tree { list-style: none; padding-left: 0; margin: 0; font-size: 0.88rem; }
-        ul.tree ul { list-style: none; padding-left: 18px; border-left: 1px dashed var(--border); margin: 2px 0 6px 6px; }
-        .t-course { font-weight: 700; color: var(--blue-dark); padding: 4px 0; display: inline-block; }
-        .t-module { font-weight: 600; color: var(--ink); padding: 2px 0; display: inline-block; }
-        .t-article { color: var(--muted); padding: 1px 0; display: inline-block; }
-        .t-count { color: var(--muted); font-weight: 400; font-size: 0.78em; }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/manage.css') }}">
 </head>
 <body>
 <div class="wrap">
@@ -137,7 +63,7 @@
                 </form>
             </div>
 
-            <div class="card" style="margin-top: 18px;">
+            <div class="card">
                 <h2>Rename / Reorder</h2>
                 <p class="hint">Pick any item, give it a new name and/or a new sequence position. Leave a field blank to keep it as-is.</p>
                 <form method="POST" action="{{ url_for('manage_rename') }}">
@@ -193,7 +119,7 @@
                         </ul>
                     </li>
                 {% else %}
-                    <li style="color: var(--muted);">No courses yet — create one on the left.</li>
+                    <li class="empty">No courses yet — create one on the left.</li>
                 {% endfor %}
             </ul>
         </div>

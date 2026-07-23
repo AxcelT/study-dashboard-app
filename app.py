@@ -1,8 +1,9 @@
 
-from flask import Flask, render_template, request, redirect, url_for, abort, flash
+from flask import Flask, render_template, request, redirect, url_for, abort, flash, make_response
 from werkzeug.utils import secure_filename, safe_join
 from markdown import markdown
 import os
+import shutil
 import logging
 from logging.handlers import RotatingFileHandler
 import re
@@ -276,6 +277,161 @@ def manage_rename():
         logger.error(f"Rename failed: {e}", exc_info=True)
         flash(('error', f"Rename failed: {e}"))
     return redirect(url_for('manage'))
+
+
+# --- Inline Node Editing (HTMX fragment routes) ---
+# A "node" rel_path identifies one tree entry:
+#   <course>                       directory
+#   <course>/<module>              directory
+#   <course>/<module>/<article>    directory
+#   <course>/<module>/<article>/<sub_stem>   .md / .ai.md file pair
+# Responses are HTML fragments swapped into the sidebar by HTMX. Mutations set
+# 'HX-Trigger: tree-changed' so the whole sidebar re-renders with fresh paths.
+
+def parse_node(rel_path):
+    """Validate a node rel_path and confirm it exists on disk. Returns parts or None."""
+    parts = rel_path.split('/')
+    if not 1 <= len(parts) <= 4 or not all(SLUG_RE.match(p) for p in parts):
+        return None
+    if len(parts) <= 3:
+        abs_dir = safe_join(BASE_DIR, *parts)
+        if abs_dir is None or not os.path.isdir(abs_dir):
+            return None
+    else:
+        article_dir = safe_join(BASE_DIR, *parts[:3])
+        if article_dir is None or not os.path.isfile(os.path.join(article_dir, parts[3] + '.md')):
+            return None
+    return parts
+
+
+def node_title_context(parts):
+    ctx = {'rel_path': '/'.join(parts), 'title': display_name(parts[-1]), 'is_active': False}
+    if len(parts) == 4:
+        article_dir = safe_join(BASE_DIR, *parts[:3])
+        ctx['has_ai'] = os.path.isfile(os.path.join(article_dir, parts[3] + AI_SUFFIX))
+    return ctx
+
+
+@app.route('/sidebar')
+def sidebar():
+    """Sidebar header + tree fragment, refetched whenever tree-changed fires."""
+    courses = scan_notes()
+    selected = request.args.get('course')
+    current_course = next((c for c in courses if c['slug'] == selected),
+                          courses[0] if courses else None)
+    active = None
+    if current_course and request.args.get('sub'):
+        active = {'course': current_course['slug'], 'module': request.args.get('module'),
+                  'article': request.args.get('article'), 'sub': request.args.get('sub')}
+    return render_template('partials/_sidebar.html', courses=courses,
+                           current_course=current_course, active=active)
+
+
+@app.route('/node/title/<path:rel_path>')
+def node_title(rel_path):
+    """Plain title fragment — used to cancel an inline edit."""
+    parts = parse_node(rel_path)
+    if parts is None:
+        abort(404)
+    return render_template('partials/_node_title.html', **node_title_context(parts))
+
+
+@app.route('/node/edit/<path:rel_path>')
+def node_edit(rel_path):
+    """Inline rename form fragment, swapped in place of the title."""
+    parts = parse_node(rel_path)
+    if parts is None:
+        abort(404)
+    return render_template('partials/_edit_form.html', rel_path=rel_path,
+                           current_name=display_name(parts[-1]))
+
+
+@app.route('/node/rename/<path:rel_path>', methods=['PUT'])
+def node_rename(rel_path):
+    parts = parse_node(rel_path)
+    if parts is None:
+        abort(404)
+
+    typed = request.form.get('name', '')
+    slug = slugify(typed)
+
+    def edit_form(error):
+        return render_template('partials/_edit_form.html', rel_path=rel_path,
+                               current_name=typed or display_name(parts[-1]), error=error)
+
+    if not slug:
+        return edit_form('Name cannot be empty.')
+
+    old_base = parts[-1]
+    if len(parts) == 1:
+        new_base = slug          # courses carry no sequence number
+    else:
+        parent_dir = safe_join(BASE_DIR, *parts[:-1])
+        prefix = seq_prefix(old_base) or next_prefix(parent_dir)
+        new_base = f"{prefix}_{slug}"
+
+    if new_base == old_base:
+        return render_template('partials/_node_title.html', **node_title_context(parts))
+
+    try:
+        if len(parts) <= 3:
+            abs_path = safe_join(BASE_DIR, *parts)
+            new_path = os.path.join(os.path.dirname(abs_path), new_base)
+            if os.path.exists(new_path):
+                return edit_form(f"'{new_base}' already exists.")
+            os.rename(abs_path, new_path)
+        else:
+            article_dir = safe_join(BASE_DIR, *parts[:3])
+            new_raw = os.path.join(article_dir, new_base + '.md')
+            if os.path.exists(new_raw):
+                return edit_form(f"'{new_base}' already exists.")
+            os.rename(os.path.join(article_dir, old_base + '.md'), new_raw)
+            old_ai = os.path.join(article_dir, old_base + AI_SUFFIX)
+            if os.path.isfile(old_ai):
+                os.rename(old_ai, os.path.join(article_dir, new_base + AI_SUFFIX))
+    except OSError as e:
+        logger.error(f"Inline rename failed for {rel_path}: {e}", exc_info=True)
+        return edit_form(f"Rename failed: {e}")
+
+    new_parts = parts[:-1] + [new_base]
+    logger.info(f"Renamed node {rel_path} -> {'/'.join(new_parts)}")
+    resp = make_response(render_template('partials/_node_title.html',
+                                         **node_title_context(new_parts)))
+    resp.headers['HX-Trigger'] = 'tree-changed'
+    return resp
+
+
+@app.route('/node/delete/<path:rel_path>', methods=['DELETE'])
+def node_delete(rel_path):
+    parts = parse_node(rel_path)
+    if parts is None:
+        abort(404)
+
+    try:
+        if len(parts) <= 3:
+            shutil.rmtree(safe_join(BASE_DIR, *parts))
+        else:
+            article_dir = safe_join(BASE_DIR, *parts[:3])
+            stem = parts[3]
+            os.remove(os.path.join(article_dir, stem + '.md'))
+            ai_path = os.path.join(article_dir, stem + AI_SUFFIX)
+            if os.path.isfile(ai_path):
+                os.remove(ai_path)
+            # Media files uploaded for this sub-article follow the <stem>_<idx>.<ext> scheme
+            media_dir = os.path.join(article_dir, 'media')
+            if os.path.isdir(media_dir):
+                media_re = re.compile(rf'^{re.escape(stem)}_\d+\.')
+                for entry in os.listdir(media_dir):
+                    if media_re.match(entry):
+                        os.remove(os.path.join(media_dir, entry))
+    except OSError as e:
+        logger.error(f"Inline delete failed for {rel_path}: {e}", exc_info=True)
+        return f"Delete failed: {e}", 500
+
+    logger.info(f"Deleted node {rel_path}")
+    resp = make_response('', 200)
+    resp.headers['HX-Trigger'] = 'tree-changed'
+    return resp
 
 
 # --- Notes Compiler (adds sub-article content into the hierarchy) ---

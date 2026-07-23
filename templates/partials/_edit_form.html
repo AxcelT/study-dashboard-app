@@ -1,0 +1,15 @@
+{# Inline rename form. Replaces a _node_title fragment; Enter saves (hx-put),
+   Esc or ✕ restores the title via GET /node/title. #}
+<form class="edit-form"
+      hx-put="{{ url_for('node_rename', rel_path=rel_path) }}"
+      hx-target="this" hx-swap="outerHTML"
+      x-on:click.stop>
+    <input type="text" name="name" value="{{ current_name }}"
+           autofocus autocomplete="off" aria-label="New name">
+    <button type="submit" class="icon-btn" title="Save (Enter)">✔</button>
+    <button type="button" class="icon-btn" title="Cancel (Esc)"
+            hx-get="{{ url_for('node_title', rel_path=rel_path) }}"
+            hx-target="closest form" hx-swap="outerHTML"
+            hx-trigger="click, keyup[key=='Escape'] from:closest form">✕</button>
+    {% if error %}<span class="edit-error">{{ error }}</span>{% endif %}
+</form>
