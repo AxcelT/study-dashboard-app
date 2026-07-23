@@ -44,8 +44,8 @@ To support the HTMX frontend, the Python backend must be updated to serve granul
 *   **Task 5.2:** Update routing logic in `app.py` to detect HTMX requests by checking for the `HX-Request` header. If present, return only the specific HTML snippet required; if missing, render the full page.
 
 ## Acceptance Criteria
-- [ ] Sidebar hierarchy collapses and expands smoothly without page reloads.
-- [ ] Users can edit titles and article content inline, directly on the dashboard.
-- [ ] Users can delete items with a confirmation prompt, instantly removing them from the screen.
+- [x] Sidebar hierarchy collapses and expands smoothly without page reloads.
+- [ ] Users can edit titles and article content inline, directly on the dashboard. *(titles done — article content editing still open)*
+- [x] Users can delete items with a confirmation prompt, instantly removing them from the screen.
 - [ ] New items (Courses, Modules, Articles) can be created via modal overlays that update the live view upon submission.
 - [ ] Media can be attached to articles and viewed alongside the text.

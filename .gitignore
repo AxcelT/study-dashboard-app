@@ -4,6 +4,7 @@ coding_pasta.txt
 logs/
 util/input
 util/output
+.claude
 
 #GITHUB DEFAULLTS BELOW
 # Byte-compiled / optimized / DLL files
